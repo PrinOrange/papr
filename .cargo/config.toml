@@ -1,0 +1,8 @@
+# Build parallelism is capped because the `windows` crate (pulled in via
+# tauri/dialog with its full Win32 feature set) crashes rustc 1.97 with
+# STATUS_STACK_BUFFER_OVERRUN when several heavy crates compile at once on this
+# machine (8 logical cores). Pair with `[profile.dev.package.windows] debug =
+# false` in the workspace Cargo.toml. The cap is a no-op on CI runners, which
+# have 2 cores.
+[build]
+jobs = 2

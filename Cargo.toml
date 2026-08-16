@@ -43,3 +43,11 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
+
+# The `windows` crate (pulled in via tauri/dialog with its full Win32 feature
+# set) is enormous: rustc 1.97 crashes with STATUS_STACK_BUFFER_OVERRUN during
+# its codegen when debuginfo is on. Build it without debug info — the app's own
+# crate keeps full debuginfo; only this dependency is affected. Package overrides
+# must live in the workspace root manifest, not a member crate.
+[profile.dev.package.windows]
+debug = false

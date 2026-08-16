@@ -44,6 +44,13 @@ export const fetchImage = (url: string, pageUrl?: string | null) =>
     imageBytes,
   );
 
+/** "Save image" via a native save dialog, entirely in Rust (fetch → dialog →
+ *  write). Returns whether a file was actually written — false when the user
+ *  cancels. Kept in Rust so a large image never round-trips the JSON IPC
+ *  channel as a number array. */
+export const saveImage = (url: string, pageUrl?: string | null) =>
+  invoke<boolean>("save_image", { url, pageUrl: pageUrl ?? null });
+
 // ── feeds ──
 export const listFeeds = () => invoke<Feed[]>("list_feeds");
 export const addFeed = (url: string, folderId: number | null) =>
@@ -145,6 +152,17 @@ export const extractFulltext = (articleId: number) =>
 export const importOpml = (content: string) =>
   invoke<number>("import_opml", { content });
 export const exportOpml = () => invoke<string>("export_opml");
+
+// ── file dialog bridges ──
+// The webview has no filesystem access. The frontend shows the native save/open
+// dialog via @tauri-apps/plugin-dialog; these commands bridge the chosen path
+// to disk. Paths come only from the user's own dialog selection.
+/** Persist bytes to `path` — a destination the user picked in a save dialog. */
+export const writeFile = (path: string, data: Uint8Array) =>
+  invoke<void>("write_file", { path, data });
+/** Read a file's bytes — a source the user picked in an open dialog. */
+export const readFile = (path: string) =>
+  invoke<ImageBytesResponse>("read_file", { path }).then(imageBytes);
 
 // ── AI (streaming over a Channel) ──
 export function aiSummarize(
