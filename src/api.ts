@@ -153,17 +153,6 @@ export const importOpml = (content: string) =>
   invoke<number>("import_opml", { content });
 export const exportOpml = () => invoke<string>("export_opml");
 
-// ── file dialog bridges ──
-// The webview has no filesystem access. The frontend shows the native save/open
-// dialog via @tauri-apps/plugin-dialog; these commands bridge the chosen path
-// to disk. Paths come only from the user's own dialog selection.
-/** Persist bytes to `path` — a destination the user picked in a save dialog. */
-export const writeFile = (path: string, data: Uint8Array) =>
-  invoke<void>("write_file", { path, data });
-/** Read a file's bytes — a source the user picked in an open dialog. */
-export const readFile = (path: string) =>
-  invoke<ImageBytesResponse>("read_file", { path }).then(imageBytes);
-
 // ── AI (streaming over a Channel) ──
 export function aiSummarize(
   articleId: number,

@@ -16,7 +16,6 @@
     "autostart:allow-is-enabled",
     "deep-link:default",
     "updater:default",
-    "process:default",
-    "dialog:default"
+    "process:default"
   ]
 }

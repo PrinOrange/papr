@@ -696,11 +696,6 @@ pub async fn export_opml(state: State<'_, AppState>) -> AppResult<String> {
 
 // ─────────────────────────── file read / write ───────────────────────────
 
-// The webview has no filesystem access, so file content crosses the IPC
-// boundary and these bridges persist/read it. Paths always come from the
-// user's own native open/save dialog selection, never from app logic, so a
-// misbehaving path can only ever be a path the user themselves chose.
-
 /// Write bytes to `path` off the async runtime's blocking pool, so a large
 /// write can't stall the runtime. `path` is a destination the user picked in a
 /// native save dialog.
@@ -712,22 +707,25 @@ async fn write_bytes(path: PathBuf, bytes: Vec<u8>) -> AppResult<()> {
         .map_err(|e| AppError::other(format!("write {display}: {e}")))
 }
 
-/// Persist raw bytes to `path` — the destination a user picked in a native save
-/// dialog (OPML export). The frontend bridges `save()` (plugin-dialog) to disk.
+/// Keep destination selection and writing in the same trusted command: the
+/// webview can never supply an arbitrary filesystem path.
 #[tauri::command]
-pub async fn write_file(path: String, data: Vec<u8>) -> AppResult<()> {
-    write_bytes(PathBuf::from(path), data).await
-}
-
-/// Read a file's raw bytes — the source a user picked in a native open dialog
-/// (OPML import). The caller decodes text from the bytes.
-#[tauri::command]
-pub async fn read_file(path: String) -> AppResult<Vec<u8>> {
-    let display = path.clone();
-    tauri::async_runtime::spawn_blocking(move || std::fs::read(&path))
-        .await
-        .map_err(|e| AppError::other(format!("read {display}: {e}")))?
-        .map_err(|e| AppError::other(format!("read {display}: {e}")))
+pub async fn save_text_file(
+    app: AppHandle,
+    content: String,
+    default_name: String,
+    filter_name: String,
+    extensions: Vec<String>,
+) -> AppResult<bool> {
+    let extensions: Vec<&str> = extensions.iter().map(String::as_str).collect();
+    let Some(path) = app.dialog().file()
+        .add_filter(filter_name, &extensions)
+        .set_file_name(default_name)
+        .blocking_save_file() else { return Ok(false); };
+    let path = path.into_path()
+        .map_err(|_| AppError::other("save dialog returned a non-file path"))?;
+    write_bytes(path, content.into_bytes()).await?;
+    Ok(true)
 }
 
 // ─────────────────────────── settings ───────────────────────────

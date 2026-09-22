@@ -3,7 +3,6 @@ import { cloneElement, isValidElement, useEffect, useRef, useState } from "react
 import { useTranslation } from "react-i18next";
 import { getVersion } from "@tauri-apps/api/app";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { open } from "@tauri-apps/plugin-dialog";
 import * as api from "../api";
 import { useUi, READER_BOUNDS, type OpenMode } from "../store";
 import { useArticleActions } from "../hooks/articleActions";
@@ -776,6 +775,7 @@ function SubscriptionsSection({
   const qc = useQueryClient();
   const actions = useArticleActions();
   const [search, setSearch] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
   const filtered = feeds.filter(
     (f) => !search || f.title.toLowerCase().includes(search.toLowerCase()),
   );
@@ -840,16 +840,9 @@ function SubscriptionsSection({
     }
   };
 
-  const importOpml = async () => {
+  const importOpml = async (file: File) => {
     try {
-      const picked = await open({
-        multiple: false,
-        directory: false,
-        filters: [{ name: "OPML", extensions: ["opml", "xml"] }],
-      });
-      if (typeof picked !== "string") return; // cancelled
-      const content = new TextDecoder().decode(await api.readFile(picked));
-      const n = await api.importOpml(content);
+      const n = await api.importOpml(await file.text());
       await qc.invalidateQueries();
       onToast(t("settings.subscriptions.opmlImported", { count: n }));
     } catch (e) {
@@ -870,6 +863,17 @@ function SubscriptionsSection({
 
   return (
     <>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".opml,.xml"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) importOpml(f);
+          e.target.value = "";
+        }}
+      />
       <div className="settings-group" style={{ marginBottom: 18 }}>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div
@@ -901,7 +905,7 @@ function SubscriptionsSection({
               }}
             />
           </div>
-          <button className="s-btn" onClick={importOpml}>
+          <button className="s-btn" onClick={() => fileRef.current?.click()}>
             <Icon name="arrow-down" size={12} /> {t("settings.subscriptions.importOpml")}
           </button>
           <button className="s-btn" onClick={exportOpml}>
